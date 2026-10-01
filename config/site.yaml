@@ -1,0 +1,75 @@
+# HCT rooftop, Dubai Academic City. Model assumptions -- see ASSUMPTIONS.md.
+
+location:
+  name: HCT rooftop, Dubai Academic City
+  latitude_deg: 25.1
+  longitude_deg: 55.4
+  utc_offset_h: 4                   # Asia/Dubai, no DST
+  elevation_m: 60
+
+wind:
+  # Hourly-mean wind at the rotor mid-plane for the reference stand height.
+  weibull_k: 2.0
+  weibull_scale_ms: 4.5             # UNKNOWN: earlier modelling used 6.0 (likely high for the rooftop)
+  max_hourly_mean_ms: 12.0          # soft cap on hub hourly means (strong shamal ~10-15 m/s at 10 m)
+  hourly_autocorr: 0.85             # lag-1 correlation of the hourly-mean process (synoptic persistence)
+  # Relative diurnal multiplier by local hour (normalised to mean 1 at runtime):
+  # calm mornings, sea breeze building ~11:00-18:00, weaker nights.
+  diurnal_profile: [0.85, 0.82, 0.80, 0.78, 0.76, 0.74, 0.70, 0.68, 0.72, 0.82, 0.95, 1.10,
+                    1.25, 1.36, 1.42, 1.44, 1.40, 1.30, 1.15, 1.02, 0.95, 0.92, 0.90, 0.87]
+  # Turbulence (AR-filtered, two scales)
+  turbulence_intensity: 0.22        # rooftop TI 15-30 %
+  integral_length_m: 25.0           # small-scale integral length (roof-generated turbulence)
+  slow_fraction: 0.35               # share of variance in the slow (~10 min) component
+  slow_time_constant_s: 600
+  gust_rate_per_h: 1.5              # coherent gust events
+  gust_amplitude_sigma: [1.5, 3.0]  # peak in units of turbulence sigma
+  gust_duration_s: [4, 20]
+  shamal:
+    rate_per_30d: 1.5
+    duration_days: [1.0, 3.0]
+    wind_multiplier: [1.5, 2.1]
+    dust_probability: 0.6
+  forecast_10m_to_rooftop_ratio: 0.80   # rooftop hub mean ~ ratio x NWP 10 m wind (the ML learns this)
+
+mounting:
+  stand_height_m: 1.5               # UNKNOWN: stand height above roof
+  rotor_midplane_above_base_m: 0.5147
+  reference_height_m: 2.0           # height (above roof) the Weibull scale refers to
+  roof_shear_alpha: 0.25            # power-law exponent near the roof (assumed)
+  ti_height_exponent: -0.3          # TI ~ (z/z_ref)^exp: less roof turbulence higher up
+
+solar:
+  linke_like_clear_factor: 1.0      # multiplier on Haurwitz clear-sky GHI
+  cloud_probability_per_day: 0.08   # UAE mostly clear
+  cloud_depth: [0.3, 0.8]           # fractional GHI reduction on cloudy spells
+  dust_attenuation: [0.15, 0.45]    # GHI reduction during dust events
+  dust_event_rate_per_30d: 2.0
+  dust_duration_h: [6, 36]
+  soiling:
+    base_rate_per_day: 0.003        # fractional PV output loss per day (UAE typical 0.2-0.5 %)
+    dust_rate_multiplier: 8.0
+    cleaning_interval_days: 14      # 0 = never cleaned
+    rotor_soiling_rate_per_day: 0.0005   # Cp loss from blade/cone soiling (slow, natural)
+
+climate:
+  # Monthly mean ambient temperature [C] Jan..Dec (Dubai)
+  monthly_mean_t_c: [19.5, 20.8, 23.6, 27.5, 31.9, 34.2, 36.0, 36.2, 33.8, 30.2, 25.6, 21.4]
+  diurnal_amplitude_c: [5.0, 5.2, 5.5, 6.0, 6.5, 6.5, 6.0, 6.0, 6.0, 6.0, 5.5, 5.0]
+  temp_peak_hour: 14.5
+  temp_noise_c: 1.0
+  monthly_mean_rh: [65, 65, 62, 55, 52, 57, 57, 59, 62, 62, 62, 66]
+  rh_diurnal_amplitude: 18.0        # RH swing opposite to temperature
+  pressure_hpa: 1008.0
+
+simulation:
+  start: "2026-06-01T00:00:00"      # local time
+  forecast_issue_every_h: 1
+  forecast_horizon_h: 48
+  forecast_error:
+    wind_sigma_ms_at_24h: 1.3
+    wind_sigma_growth: 0.5          # sigma(h) = s24 * (h/24)^growth
+    wind_bias_ms: 0.3               # NWP over-estimate at roof level
+    ghi_sigma_frac_at_24h: 0.12
+    temp_sigma_c_at_24h: 1.2
+    error_autocorr_h: 0.9

@@ -1,0 +1,39 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Simulator Realism Check</title><style>
+:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--rule:#e4e3df;--accent:#2a78d6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--rule:#33332f}}
+:root[data-theme="dark"]{--bg:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--rule:#33332f}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif;margin:0;padding:0 16px}
+main{max-width:1100px;margin:32px auto}h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:36px 0 6px}
+p,li{color:var(--ink2)}img{max-width:100%;border:1px solid var(--rule);border-radius:6px;background:#fcfcfb}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left}
+td.num{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.meta{font-family:ui-monospace,monospace;font-size:12px;color:var(--ink2)}</style></head><body><main>
+<h1>AeroSolar Twin: simulator realism check</h1>
+<p class=meta>{&quot;run&quot;: &quot;fc_2026_06&quot;, &quot;seed&quot;: 206, &quot;days&quot;: 30.0}</p>
+<p>Everything below is <b>simulated</b>. The purpose is to show that the synthetic data has the statistical and physical character of a real rooftop VAWT, so models trained on it transfer to the prototype after recalibration (see CALIBRATION.md).</p>
+<h2>Wind distribution</h2><p>10-minute hub-height means over the run, mean 3.64 m/s, 58 % of the time above 3 m/s. The fitted Weibull differs from the configured hourly one because diurnal and shamal multipliers reshape it; turbulence widens the tail.</p><img src='realism/wind_weibull.png' alt='Wind distribution'>
+<h2>Diurnal cycles</h2><p>Median and interquartile range by local hour. Afternoon sea breeze peaks around 15:00; mornings are calm; irradiance follows solar geometry for 25.1° N with dust/cloud dips.</p><img src='realism/diurnal.png' alt='Diurnal cycles'>
+<h2>Power curve</h2><p>Left: truth. Right: what the Pi sees (cup anemometer overspeeding and 0.67 m/s quantisation smear the curve). The electrical cut-in (~4.5–5 m/s) is far above the rotational cut-in because the PMG only charges once its rectified EMF exceeds the battery voltage. Output stops above ~8 m/s because the 200 rpm overspeed trip engages (braked 11.76 % of this run).</p><img src='realism/power_curve.png' alt='Power curve'>
+<h2>Temperatures</h2><p>Bearing and generator temperatures ride on ambient plus solar heating of the mast, cooled by wind. The lower panel shows DS18B20 error: probe lag, per-device offset and 0.0625 °C steps (85/−127 glitch codes are removed here and counted in the table).</p><img src='realism/temperatures.png' alt='Temperatures'>
+<h2>Energy balance</h2><p>Daily energy from the truth record. Rooftop wind contributes little at a 4.5 m/s Weibull scale; the 12 V self-consumption (Pi 5 + ESP32 + Arduino + sensors) is comparable to the PV yield.</p><img src='realism/energy.png' alt='Energy balance'>
+<h2>Sensor and network quirks</h2><table>
+<tr><td>Packets lost (Wi-Fi, burst model)</td><td class=num>0.79 %</td><td>Gilbert-Elliott: losses arrive in bursts</td></tr>
+<tr><td>Duplicate packets (QoS 1)</td><td class=num>2580</td><td>same seq delivered twice</td></tr>
+<tr><td>Out-of-order arrivals</td><td class=num>6565</td><td>late packets overtaken by newer ones</td></tr>
+<tr><td>DS18B20 85.0 °C power-on reads</td><td class=num>163</td><td>across 3 probes</td></tr>
+<tr><td>DS18B20 −127 °C disconnect reads</td><td class=num>751</td><td>incl. whole-bus dropouts</td></tr>
+<tr><td>BH1750 saturated (all / daytime)</td><td class=num>29.2 % / 53.3 %</td><td>65535 lx ≈ 546 W/m² at /120</td></tr>
+<tr><td>Anemometer bias vs hub truth (all / v&gt;3)</td><td class=num>+0.02 / +0.02 m/s</td><td>overspeeding + quantisation + stall</td></tr>
+<tr><td>Hall rpm |error| (count method)</td><td class=num>12.6 rpm</td><td>±60 rpm steps at 1 pulse/rev, 1 s gate</td></tr>
+<tr><td>DHT22 repeated values</td><td class=num>64 %</td><td>2 s min interval + failed reads</td></tr>
+</table>
+<h2>Daily energy [Wh] (first 7 days)</h2><table>
+<tr><td>2026-06-01</td><td class=num>wind    4.4  PV  145.8  load  136.4</td><td></td></tr>
+<tr><td>2026-06-02</td><td class=num>wind    8.2  PV  135.0  load  136.4</td><td></td></tr>
+<tr><td>2026-06-03</td><td class=num>wind   11.6  PV  126.3  load  136.4</td><td></td></tr>
+<tr><td>2026-06-04</td><td class=num>wind   12.7  PV  121.7  load  136.4</td><td></td></tr>
+<tr><td>2026-06-05</td><td class=num>wind    0.1  PV  133.4  load  136.4</td><td></td></tr>
+<tr><td>2026-06-06</td><td class=num>wind    0.9  PV  137.2  load  136.4</td><td></td></tr>
+<tr><td>2026-06-07</td><td class=num>wind    8.9  PV   66.3  load  136.4</td><td></td></tr>
+</table>
+</main></body></html>

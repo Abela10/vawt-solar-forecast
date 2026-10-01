@@ -1,0 +1,30 @@
+# Simulation scenarios (weather period presets) for the power-forecasting datasets.
+# Every scenario is a healthy turbine; scenarios differ in start date, length and weather overrides.
+
+presets:
+  month:                      # generic one-month run (start overridden by the campaign)
+    duration_h: 744
+    start: "2026-01-01T00:00:00"
+
+  summer_30d:
+    duration_h: 720
+    start: "2026-06-01T00:00:00"
+
+  winter_30d:
+    duration_h: 720
+    start: "2026-01-01T00:00:00"
+
+  shamal_week:
+    duration_h: 168
+    start: "2026-06-10T00:00:00"
+    site_overrides: {wind: {shamal: {rate_per_30d: 12.0}}}
+
+  dusty_month:
+    duration_h: 720
+    start: "2026-07-01T00:00:00"
+    site_overrides: {solar: {dust_event_rate_per_30d: 6.0, soiling: {cleaning_interval_days: 0}}}
+
+  network_stress:
+    duration_h: 48
+    start: "2026-05-15T00:00:00"
+    sensor_overrides: {network: {p_good_to_bad: 0.01, loss_bad: 0.8, p_duplicate: 0.01, p_late: 0.01}}

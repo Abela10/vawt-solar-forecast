@@ -1,0 +1,88 @@
+# Sensor models. Values are datasheet-typical or assumed; see CALIBRATION.md.
+
+packet:
+  topic: vawt/sensors
+  status_topic: vawt/status
+  rate_hz: 1
+  # The 19 fields of the ESP32 JSON packet (proposed schema, see ASSUMPTIONS.md); vibration is not part of this project
+  fields: [ts, seq, wind_ms, rpm, hall_count, bus_v, current_a, power_w, pv_power_w,
+           batt_v, soc_pct, t_gen_c, t_bearing_c, t_amb_c, lux, ldr_ew, ldr_ns, dht_t_c, dht_rh]
+
+routing:                            # not final; default split
+  esp32: [anemometer, hall]
+  pi: [ina219, ina219_pv, ds18b20, bh1750, ldr, dht]
+
+anemometer:
+  type: 3cup_pulse
+  m_per_s_per_hz: 0.667             # pulse frequency calibration (1 Hz = 2.4 km/h)
+  debounce_s: 0.050                 # -> max 20 pulses/s -> reading caps near 13.3 m/s
+  distance_constant_m: 3.0          # cup response length
+  overspeed_ratio: 0.7              # tau_up / tau_down (cups speed up faster than they slow down)
+  stall_ms: 0.5                     # starting threshold
+
+hall:
+  type: A3144
+  pulses_per_rev: 1
+  edge_jitter_s: 5.0e-5
+  magnet_angle_rad: 0.0
+  rpm_method: count                 # count (60 x pulses in last second, +-1 pulse quantisation) | period
+
+ina219:
+  shunt_ohm: 0.1
+  bus_lsb_v: 0.004
+  current_lsb_a: 0.0001             # 10 uV shunt LSB / 0.1 ohm
+  current_range_a: 3.2
+  gain_error: 0.005                 # 1-sigma per device
+  offset_a: 0.0005
+
+ina219_pv:                          # assumed second INA219 on the MPPT output (pv_power_w)
+  gain_error: 0.005
+  power_lsb_w: 0.002
+
+battery_monitor:
+  soc_source: coulomb_counter       # BMS / Pi coulomb counter (assumed)
+  soc_drift_pct_per_day: 0.5
+  batt_v_lsb: 0.004
+
+ds18b20:
+  resolution_c: 0.0625
+  accuracy_c: 0.5                   # per-device offset drawn uniform within +-accuracy/2 (typ.)
+  conversion_s: 0.75
+  probe_tau_s: 10.0
+  p_power_on_85: 2.0e-5             # per read
+  p_disconnect_start: 5.0e-6        # per read, starts a -127 burst
+  disconnect_burst_s: [1, 30]
+  bus_dropout_fraction: 0.5         # share of disconnect bursts that take down the whole shared 1-Wire bus
+  ambient_radiation_error_k_per_kwm2: 2.0   # unshielded ambient probe reads high in sun (assumed)
+
+bh1750:
+  lux_per_wm2: 120.0                # W/m2 = lux / 120 (parameter)
+  saturation_lux: 65535
+  gain_error: 0.1
+
+ldr:
+  count: 4
+  tau_s: 2.0
+  gain_per_deg: 0.08                # normalised bridge output per degree (small-angle)
+  noise: 0.01
+
+dht:
+  type: DHT22
+  min_interval_s: 2.0
+  t_accuracy_c: 0.5
+  rh_accuracy: 3.0
+  p_read_fail: 0.02                 # failed read -> ESP32 repeats last value (stale)
+
+network:
+  # Gilbert-Elliott burst-loss model
+  p_good_to_bad: 0.002
+  p_bad_to_good: 0.2
+  loss_good: 0.002
+  loss_bad: 0.6
+  p_duplicate: 0.001                # QoS 1 redelivery
+  p_late: 0.002
+  late_delay_s: [1.5, 8.0]
+  latency_s: [0.02, 0.15]
+  clock_offset_s: 0.35              # ESP32 clock vs Pi at start
+  clock_drift_ppm: 30.0
+  ntp_resync_s: 3600

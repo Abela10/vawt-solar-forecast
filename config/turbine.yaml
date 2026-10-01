@@ -1,0 +1,131 @@
+# AeroSolar turbine design parameters.
+# Every value is a DESIGN value or a MODEL assumption -- nothing here is measured yet.
+# Keys tagged "# UNKNOWN" are logged in ASSUMPTIONS.md; CALIBRATION.md says how to measure them.
+
+rotor:
+  type: helical_savonius            # Ugrinsky-type drag rotor, not a Darrieus, no airfoil profile
+  diameter_m: 0.600
+  height_m: 0.420
+  swept_area_m2: 0.252              # D x H
+  blade_count: 2                    # UNKNOWN: report also says 4
+  twist_deg: 180                    # UNKNOWN exact value
+  arc_radius_m: 0.150
+  overlap_ratio: 0.0                # UNKNOWN; typical 0.15-0.20
+  rotating_mass_kg: 0.52            # 2 blades (0.87 kg for 4)
+  inertia_kgm2: 0.020               # UNKNOWN: estimate, bounded 0.011-0.025; replace with SolidWorks Lzz
+  # Cp(TSR) model: Cp = Cp_max * x * ((k+1) - x^k) / k, x = TSR / TSR_opt.
+  # Passes exactly through (TSR 0.785, Cp 0.20); zero at TSR=0 and at runaway TSR_opt*(k+1)^(1/k).
+  tsr_opt: 0.785
+  cp_max: 0.20
+  cp_rolloff_exponent: 2.0          # k=2 -> runaway TSR 1.36, static torque coefficient Cq0 = 0.38
+  cq_min: -0.15                     # floor on torque coefficient beyond runaway (aero braking)
+  ct_design: 1.1                    # thrust coefficient (assumed)
+  torque_ripple_2p: 0.10            # peak ripple fraction at blade-passing order (helix reduces it). UNKNOWN
+  cut_in_target_ms: 3.0             # design target, unverified
+  cones:
+    enabled: true
+    torque_gain: 1.18               # +18 % torque at 8 m/s from CFD (relative gain only, assumed flat vs wind)
+
+drivetrain:
+  gear_ratio: 4.0                   # spur step-up
+  gear_module_mm: 0.9
+  gear_teeth_rotor: 48              # Z1 on rotor -> mesh = 48 rotor orders
+  gear_teeth_pinion: 12             # Z2 on generator pinion
+  gear_efficiency: 0.97             # healthy spur mesh (assumed)
+  generator_inertia_kgm2: 2.0e-5    # PMG rotor (assumed); reflected x ratio^2 to rotor side
+  bearing_friction_nm: 0.015        # 2x 6802-2RS incl. contact seals, rotor side, running (assumed)
+  bearing_viscous_nms: 2.0e-4       # viscous drag [N m s/rad] (assumed)
+  bearing_static_nm: 0.025          # breakaway (assumed)
+  grease_temp_coeff_per_k: 0.01     # friction +1 %/K below 25 C (grease viscosity)
+  generator_cogging_nm: 0.015       # PMG cogging at generator shaft (assumed) -> x4 at rotor for breakaway
+
+generator:
+  purchased: false
+  type: pmg_3phase
+  rated_power_w: 30
+  k_mv_per_rpm: 16.0                # UNKNOWN: L-L RMS volts per generator rpm; valid band 14-20
+  k_valid_band: [14.0, 20.0]
+  dc_per_vll: 1.35                  # 3-phase full-bridge: V_dc ~ 1.35 x V_LL
+  rectifier_drop_v: 1.4             # two diode drops in series
+  r_eq_ohm: 2.8                     # equivalent DC-side resistance (phase R + commutation). Set so 8 m/s -> ~200 rpm
+  iron_loss_w_at_800rpm: 1.5        # core + windage loss at 800 gen rpm (scales ~ n^1.5)
+  friction_loss_nm: 0.004           # generator bearing drag at generator shaft
+  target_efficiency: 0.60           # design assumption for the whole chain (not enforced; emerges)
+
+brake:
+  type: normally_closed_servo_disc  # on drive-gear hub
+  caliper_torque_nm: 2.0            # >= 2 N m required
+  overspeed_rpm: 200                # trip threshold
+  overspeed_persist_s: 2            # rpm must exceed threshold this long (debounce, assumed)
+  gust_trip_ms: 12.0                # UNKNOWN: 12 or 15 m/s
+  gust_persist_s: 5
+  release_wind_ms: 9.0              # release when 60 s mean wind below this (assumed)
+  release_hold_s: 300               # minimum braked time before release (assumed)
+  hardwired_backup: true            # Arduino relay independent of the Pi
+
+electrical:
+  mode: battery                     # battery | eload_sweep
+  eload_sweep:
+    v_min: 0.0
+    v_max: 30.0
+    period_s: 600                   # sawtooth period of the CV electronic-load sweep
+  controller:
+    bulk_to_absorb_soc: 0.90
+    absorb_to_float_soc: 0.98
+    float_to_bulk_soc: 0.95
+    absorb_voltage_v: 14.2
+    float_voltage_v: 13.5
+    max_charge_current_a: 6.0       # 0.5C
+    dump_resistance_ohm: 8.0        # keeps rotor loaded in float
+  battery:
+    chemistry: LiFePO4
+    nominal_v: 12.8
+    capacity_ah: 12.0
+    r_internal_ohm: 0.04
+    soc_initial: 0.70
+    low_voltage_cutoff_soc: 0.05
+    # LiFePO4 4S open-circuit voltage table (SOC fraction -> V)
+    ocv_soc: [0.0, 0.05, 0.10, 0.20, 0.30, 0.50, 0.70, 0.90, 0.95, 1.00]
+    ocv_v:   [10.0, 12.0, 12.6, 12.9, 13.0, 13.15, 13.25, 13.35, 13.45, 13.6]
+  self_consumption:                 # 12 V bus loads [W] (assumed averages)
+    pi5_w: 3.5
+    esp32_w: 0.5
+    arduino_w: 0.3
+    sensors_w: 0.3
+    servo_tracker_idle_w: 0.4
+    dcdc_efficiency: 0.88
+    shed_soc: 0.15                  # below this, load shedding: tracker parked, Pi in low-power mode
+    shed_power_w: 2.0
+
+pv:
+  area_m2: 0.09
+  rated_w: 18.0
+  rated_v: 18.0
+  derate: 0.90                      # MPPT + wiring + mismatch -> 16.2 W at STC (design table)
+  temp_coeff_per_k: -0.004
+  noct_c: 45.0
+  tracker:
+    type: two_axis_4ldr
+    nominal_error_deg: 1.0          # RMS tracking error when healthy (assumed)
+    slew_deg_per_s: 2.0
+
+thermal:
+  bearing_tau_s: 900                # 15 min
+  bearing_rth_k_per_w: 6.0          # still-air thermal resistance bearing->ambient
+  bearing_solar_k_per_kwm2: 4.0     # mast solar heating at 1000 W/m2
+  generator_tau_s: 600              # 10 min
+  generator_rth_k_per_w: 5.0
+  generator_solar_k_per_kwm2: 6.0
+  convective_wind_coeff: 0.35       # Rth(v) = Rth0 / (1 + c*sqrt(v))
+
+control:
+  telemetry_hz: 1
+  physics_hz: 10                    # internal time step (>= 10 Hz)
+
+
+forecast:
+  # Capacities used to normalise forecast errors (capacity-accuracy metrics).
+  capacity_w:
+    pv: 18.0                        # PV nameplate (STC)
+    wind: 12.0                      # electrical output at the 200 rpm overspeed limit (~8.2 m/s); the 30 W
+                                    # generator rating is never reachable, so normalising by it would flatter the model

@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+!data/.gitkeep
+models/*.pkl
+models/*.txt
+node_modules/
+web/dist/
+.ipynb_checkpoints/
+*.egg-info/
+.numba_cache/
+models/*.joblib
+data/**/derived/
